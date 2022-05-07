@@ -1,0 +1,65 @@
+{% extends 'header.html' %}
+{% csrf_token %}
+
+{% block head %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+{% endblock head %}
+
+{% block content %}
+    {% load crispy_forms_tags %}
+    <h2>Recipes</h2>
+
+{% if recipes %}
+    <div class = 'bigwrap'>
+    {% for recipe in recipes %}
+        <div class="item-card">
+            <img class="item_image_index" src="https://picsum.photos/300/300">
+            <div class="item-card-title">{{ recipe.name }}</div>
+            {% if recipe.created_by_user == user %}
+                <div class="end-time">{{ recipe.created.isoformat }}</div>
+                <a class="item-card-active" href="/item-detial/{{ recipe.id }}">View/Edit recipe</a>
+            {% else %}
+                <div class="end-time">{{ recipe.created.isoformat }}</div>
+                <a class="item-card-active" href="/item-detial/{{ recipe.id }}">View recipe</a>
+            {% endif %}
+
+            {% if recipe.avg_stars %}
+                <div class="item-card-value"> {{ recipe.avg_stars | floatformat:2 }} &#9734</div>
+            {% else %}
+                <div class="item-card-value">No reviews</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+    </div>
+
+    <div class="container p-4">
+        <div class="pagination justify-content-center">
+            <span class="step-links">
+              {% if recipes.has_previous %}
+                  <a href="?page=1">&laquo; first</a>
+                  <a href="?page={{ recipes.previous_page_number }}">previous</a>
+              {% endif %}
+
+                <span class="current">
+                    Page {{ recipes.number }} of {{ recipes.paginator.num_pages }}
+                </span>
+
+              {% if recipes.has_next %}
+                  <a href="?page={{ recipes.next_page_number }}">next</a>
+                  <a href="?page={{ recipes.paginator.num_pages }}">last &raquo;</a>
+              {% endif %}
+            </span>
+        </div>
+    </div>
+
+    {% else %}
+        <div>No recipes.</div>
+    {% endif %}
+
+    <!-- Optional Javascript -->
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+{% endblock content %}
