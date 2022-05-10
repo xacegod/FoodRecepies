@@ -1,28 +1,105 @@
-import json
+from datetime import datetime
 
+import requests
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.models import User
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.http import JsonResponse
-from django.shortcuts import redirect, render
-from datetime import datetime
-from django.utils.timezone import make_aware
 from django.db.models import Avg, Count
 
-from .forms import (
-    NewUserForm,
-    EditRecipeForm,
-    IngredientsForm,
-    RecipeIngredientForm,
-    EditWriteReview,
-)
-from .models import Ingredient, Recipe, UserReview, RecipeIngredient
-from FoodRecepies.settings import HunterIoApiKey
-import requests
+from django.shortcuts import redirect, render
+from django.utils.timezone import make_aware
 
+from FoodRecepies.settings import HunterIoApiKey, ClearBitKey
+
+from .forms import (
+    EditRecipeForm,
+    EditWriteReview,
+    IngredientsForm,
+    NewUserForm,
+    RecipeIngredientForm,
+)
+from .models import Ingredient, Recipe, RecipeIngredient, UserReview
+import clearbit
+
+
+def clearbit_enrichment(user):
+    clearbit.key = ClearBitKey
+    response = clearbit.Enrichment.find(email=user.email, stream=True)
+
+    if "pending" in response:
+        # Lookup queued - try again later
+        pass
+
+    if response["person"] is not None:
+        print(response["person"]["name"]["fullName"])
+
+    if response["company"] is not None:
+        print(response["company"]["name"])
+
+
+def register_request(request):
+    if request.method == "POST":
+        form = NewUserForm(request.POST)
+
+        if not form.is_valid():
+            messages.error(request, "Unsuccessful registration. Invalid information.")
+            return render(
+                request=request,
+                template_name="register.html",
+                context={"register_form": form},
+            )
+
+        if HunterIoApiKey:
+            response = requests.request(
+                "GET",
+                params=({"api_key": HunterIoApiKey, "email": form.cleaned_data["email"]}),
+                url="https://api.hunter.io/v2/email-verifier",
+            )
+            if not response:
+                messages.error(request, "Unsuccessful registration. Invalid information.")
+                return render(
+                    request=request,
+                    template_name="register.html",
+                    context={"register_form": form},
+                )
+
+            email_data = response.json()
+            if email_data:
+                email_data = email_data["data"]
+            else:
+                return render(
+                    request=request,
+                    template_name="register.html",
+                    context={"register_form": form},
+                )
+            if (
+                not email_data["mx_records"]
+                or email_data["gibberish"]
+                or email_data["disposable"]
+                or email_data["status"] == "invalid"
+            ):
+                messages.error(request, "Unsuccessful registration. Invalid email.")
+                return render(
+                    request=request,
+                    template_name="register.html",
+                    context={"register_form": form},
+                )
+            else:
+                user = form.save()
+                login(request, user)
+                if ClearBitKey:
+                    clearbit_enrichment(user)
+                messages.success(request, "Registration successful.")
+                return redirect("/home")
+
+    form = NewUserForm()
+    return render(
+        request=request,
+        template_name="register.html",
+        context={"register_form": form},
+    )
 
 @login_required(login_url="/login/")
 def view_ingredients(request):
@@ -52,11 +129,17 @@ def view_ingredients(request):
 
 @login_required(login_url="/login/")
 def view_top_ingredients(request):
-    temp = RecipeIngredient.objects.values('ingredient').annotate(count=Count('ingredient')).values('ingredient','count').order_by('-count').all()[:5]
+    temp = (
+        RecipeIngredient.objects.values("ingredient")
+        .annotate(count=Count("ingredient"))
+        .values("ingredient", "count")
+        .order_by("-count")
+        .all()[:5]
+    )
     data = []
     for each in temp:
-        a = Ingredient.objects.filter(id=each['ingredient']).first()
-        each['name'] = a.name
+        a = Ingredient.objects.filter(id=each["ingredient"]).first()
+        each["name"] = a.name
         data.append(each)
 
     return render(
@@ -124,55 +207,6 @@ def edit_recipe_request(request, id):
         template_name="edit_recipe.html",
         context={"form": form},
     )
-
-
-def register_request(request):
-    if request.method == "POST":
-        form = NewUserForm(request.POST)
-
-        if not form.is_valid():
-            messages.error(request, "Unsuccessful registration. Invalid information.")
-            return render(
-                request=request,
-                template_name="register.html",
-                context={"form": form},
-            )
-
-        response = requests.request(
-            "GET",
-            params=({"api_key": HunterIoApiKey, "email": form.cleaned_data["email"]}),
-            url="https://api.hunter.io/v2/email-verifier",
-        )
-        if not response:
-            messages.error(request, "Unsuccessful registration. Invalid information.")
-
-        email_data = response.json()["data"]
-
-        if (
-            not email_data["mx_records"]
-            or email_data["gibberish"]
-            or email_data["disposable"]
-            or email_data["status"] == "invalid"
-        ):
-            messages.error(request, "Unsuccessful registration. Invalid email.")
-            return render(
-                request=request,
-                template_name="register.html",
-                context={"form": form},
-            )
-        else:
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Registration successful.")
-            return redirect("/home")
-
-    else:
-        form = NewUserForm()
-        return render(
-            request=request,
-            template_name="register.html",
-            context={"form": form},
-        )
 
 
 def login_request(request):
@@ -265,7 +299,9 @@ def review_recipe(request, id):
     if request.method == "POST":
         form = EditWriteReview(request.POST)
         if request.user == recipe.created_by_user:
-            messages.error(request, "Unsuccessful - Can only review other people's recipes")
+            messages.error(
+                request, "Unsuccessful - Can only review other people's recipes"
+            )
             return render(
                 request=request,
                 template_name="review.html",
@@ -278,11 +314,13 @@ def review_recipe(request, id):
                 template_name="review.html",
                 context={"form": form, "recipe": recipe},
             )
-        user_review = UserReview.objects.filter(recipe=recipe, user=request.user).first()
+        user_review = UserReview.objects.filter(
+            recipe=recipe, user=request.user
+        ).first()
         if user_review:
             user_review.reviewed_on = make_aware(datetime.now())
-            user_review.stars = request.POST['stars']
-            user_review.description = request.POST['description']
+            user_review.stars = request.POST["stars"]
+            user_review.description = request.POST["description"]
             user_review.save()
         else:
             review = form.save(commit=False)

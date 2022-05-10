@@ -1,5 +1,42 @@
 # Food Recepies Django App
+### Setup
 
+This project is made to use PostgreSQL database connection
+- Create virtual environment for python 3.10
+- Setup database connection by changing in FoodRecipes/settings.py the following dict:
+```
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'foodrecipes',
+        'USER': 'foodrecipes',
+        'PASSWORD': '12345678',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+    }
+}
+```
+Or connect to other prefered database.
+
+Afterwards:
+### Run commands in terminal:
+- pip install -r requirements.txt
+- python manage.py makemigrations
+- python manage.py migrate
+- python manage.py createsuperuser
+
+Then run the command to populate database:
+- python manage.py create_script
+
+Once the user is created, run the server and access admin part on with the superuser account:
+http://127.0.0.1:8000/admin
+
+Pages:
+- Homepage: http://127.0.0.1:8000/home
+- Registration: http://127.0.0.1:8000/register
+- Login: http://127.0.0.1:8000/admin
+
+### App requirements:
 The object of this task is to create a simple web service for Food recipes. It should be written
 in Python, using the Django and Django REST framework.
 
@@ -63,3 +100,5 @@ In setting set up the Hunter.io Api key.
 
 ### ClearBit
 https://dashboard.clearbit.com/docs?python#
+
+Need to add API key to test and to decide which data we want to keep and use. 

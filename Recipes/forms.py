@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from Recipes.models import Recipe, Ingredient, RecipeIngredient, UserReview
+
+from Recipes.models import Ingredient, Recipe, RecipeIngredient, UserReview
 
 
 class NewUserForm(UserCreationForm):

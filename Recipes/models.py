@@ -32,9 +32,13 @@ class Ingredient(models.Model):
 
 
 class RecipeIngredient(models.Model):
-    quantity = models.CharField(max_length=50, blank=True, unique=False,
-                                help_text='Quantity of said ingredient that goes into recipe. '
-                                          'Write also unit of measurement. Max length of 50.')
+    quantity = models.CharField(
+        max_length=50,
+        blank=True,
+        unique=False,
+        help_text="Quantity of said ingredient that goes into recipe. "
+        "Write also unit of measurement. Max length of 50.",
+    )
     recipe = models.ForeignKey(
         Recipe, on_delete=models.CASCADE, null=False, blank=False
     )
