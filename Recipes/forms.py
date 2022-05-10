@@ -35,9 +35,6 @@ class EditRecipeForm(forms.ModelForm):
     class Meta:
         model = Recipe
         exclude = ["created_by_user", "created_at"]
-        inlines = [
-            RecipeIngredientForm,
-        ]
 
 
 class EditWriteReview(forms.ModelForm):

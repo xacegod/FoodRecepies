@@ -1,0 +1,39 @@
+{% extends "header.html" %}
+
+{% block content %}
+
+{% block head %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+{% endblock head %}
+
+{% load crispy_forms_tags %}
+
+{% if data %}
+        <div class="flex">
+            <div class="spacer"></div>
+            <div class="item-card-title spacer"> Name of ingredient</div>
+              <div class="item-card-title spacer"> Count of recipes used</div>
+              <div class="spacer"></div>
+          </div>
+        {% for each in data %}
+          <div class="flex">
+            <div class="spacer"></div>
+            <div class="item-card-title spacer"> {{ each.name }}</div>
+              <div class="item-card-title spacer"> {{ each.count }}</div>
+              <div class="spacer"></div>
+          </div>
+        {% endfor %}
+    {% else %}
+    <div class="item-card-title"> No data </div>
+{% endif %}
+
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% endblock %}

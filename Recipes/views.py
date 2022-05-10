@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from datetime import datetime
 from django.utils.timezone import make_aware
-from django.db.models import Avg
+from django.db.models import Avg, Count
 
 from .forms import (
     NewUserForm,
@@ -19,22 +19,9 @@ from .forms import (
     RecipeIngredientForm,
     EditWriteReview,
 )
-from .models import Ingredient, Recipe, UserReview
+from .models import Ingredient, Recipe, UserReview, RecipeIngredient
 from FoodRecepies.settings import HunterIoApiKey
 import requests
-
-
-def review_recipe(recipe, user):
-    if recipe.created_by_user != user:
-        UserReview.objects.create(
-            reviewed_on=make_aware(datetime.now()),
-            user=user,
-            stars=3.0,
-            description="Testing purposes",
-            recipe=recipe,
-        )
-    else:
-        return False
 
 
 @login_required(login_url="/login/")
@@ -64,8 +51,19 @@ def view_ingredients(request):
 
 
 @login_required(login_url="/login/")
-def view_top_ingredients():
-    pass
+def view_top_ingredients(request):
+    temp = RecipeIngredient.objects.values('ingredient').annotate(count=Count('ingredient')).values('ingredient','count').order_by('-count').all()[:5]
+    data = []
+    for each in temp:
+        a = Ingredient.objects.filter(id=each['ingredient']).first()
+        each['name'] = a.name
+        data.append(each)
+
+    return render(
+        request=request,
+        template_name="top_ingredients.html",
+        context={"data": data},
+    )
 
 
 @login_required(login_url="/login/")
@@ -280,12 +278,18 @@ def review_recipe(request, id):
                 template_name="review.html",
                 context={"form": form, "recipe": recipe},
             )
-
-        review = form.save(commit=False)
-        review.recipe = recipe
-        review.user = request.user
-        review.reviewed_on = make_aware(datetime.now())
-        review.save()
+        user_review = UserReview.objects.filter(recipe=recipe, user=request.user).first()
+        if user_review:
+            user_review.reviewed_on = make_aware(datetime.now())
+            user_review.stars = request.POST['stars']
+            user_review.description = request.POST['description']
+            user_review.save()
+        else:
+            review = form.save(commit=False)
+            review.recipe = recipe
+            review.user = request.user
+            review.reviewed_on = make_aware(datetime.now())
+            review.save()
 
         messages.success(request, "Successful.")
         return render(
